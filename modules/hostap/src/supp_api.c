@@ -415,10 +415,14 @@ enum wifi_security_type wpas_key_mgmt_to_zephyr(bool is_hapd, void *config, int 
 		return WIFI_SECURITY_TYPE_FT_SAE;
 	case WPA_KEY_MGMT_FT_IEEE8021X:
 		return WIFI_SECURITY_TYPE_FT_EAP;
+	case WPA_KEY_MGMT_DPP:
+		return WIFI_SECURITY_TYPE_DPP;
 	case WPA_KEY_MGMT_FT_IEEE8021X_SHA384:
 		return WIFI_SECURITY_TYPE_FT_EAP_SHA384;
 	case WPA_KEY_MGMT_SAE_EXT_KEY:
 		return WIFI_SECURITY_TYPE_SAE_EXT_KEY;
+	case WPA_KEY_MGMT_DPP | WPA_KEY_MGMT_PSK:
+		return WIFI_SECURITY_TYPE_DPP;
 	default:
 		return WIFI_SECURITY_TYPE_UNKNOWN;
 	}
@@ -830,13 +834,15 @@ static int wpas_add_and_config_network(struct wpa_supplicant *wpa_s,
 				if (params->TLS_cipher == WIFI_EAP_TLS_ECC_P384) {
 					if (!wpa_cli_cmd_v("set_network %d openssl_ciphers \"%s\"",
 							resp.network_id,
-							cipher_config.openssl_ciphers))
+							cipher_config.openssl_ciphers)) {
 						goto out;
+					}
 				} else if (params->TLS_cipher == WIFI_EAP_TLS_RSA_3K) {
 					snprintf(phase1, sizeof(phase1), "tls_suiteb=1");
 					if (!wpa_cli_cmd_v("set_network %d phase1 \"%s\"",
-							resp.network_id, &phase1[0]))
+							resp.network_id, &phase1[0])) {
 						goto out;
+					}
 				}
 			}
 
@@ -1285,8 +1291,8 @@ int supplicant_status(const struct device *dev, struct wifi_iface_status *status
 		struct wpa_ssid *ssid = wpa_s->current_ssid;
 		u8 channel;
 		struct signal_poll_resp signal_poll;
-		u8 *_ssid = ssid->ssid;
-		size_t ssid_len = ssid->ssid_len;
+		u8 *_ssid;
+		size_t ssid_len;
 		struct status_resp cli_status;
 		int proto;
 		int key_mgmt;
@@ -1297,6 +1303,8 @@ int supplicant_status(const struct device *dev, struct wifi_iface_status *status
 			goto out;
 		}
 
+		_ssid = ssid->ssid;
+		ssid_len = ssid->ssid_len;
 		proto = ssid->proto;
 		key_mgmt = ssid->key_mgmt;
 		sae_pwe = wpa_s->conf->sae_pwe;
@@ -1487,9 +1495,15 @@ int supplicant_11k_cfg(const struct device *dev, struct wifi_11k_params *params)
 
 int supplicant_11k_neighbor_request(const struct device *dev, struct wifi_11k_params *params)
 {
-	int ssid_len = strlen(params->ssid);
+	int ssid_len;
 
-	if (params != NULL && ssid_len > 0) {
+	if (params == NULL) {
+		return -1;
+	}
+
+	ssid_len = strlen(params->ssid);
+
+	if (ssid_len > 0) {
 		if (ssid_len > WIFI_SSID_MAX_LEN) {
 			wpa_printf(MSG_ERROR, "%s: ssid too long %u",
 				   __func__, ssid_len);

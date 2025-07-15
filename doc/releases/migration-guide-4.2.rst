@@ -23,6 +23,9 @@ the :ref:`release notes<zephyr_4.2>`.
 Build System
 ************
 
+* HWMv1 support has been removed, any out-of-tree boards or SoCs in HWMv1 format must be migrated
+  to :ref:`HWMv2 <hw_model_v2>` to work with Zephyr v4.2 onwards.
+
 Kernel
 ******
 
@@ -34,7 +37,7 @@ Boards
   nRF Util (``nrfutil``) tool. This means that you may need to `install nRF Util
   <https://www.nordicsemi.com/Products/Development-tools/nrf-util>`_ or, if you
   prefer to continue using ``nrfjprog``, you can do so by invoking west while
-  specfying the runner: ``west flash -r nrfjprog``. The full documentation for
+  specifying the runner: ``west flash -r nrfjprog``. The full documentation for
   nRF Util can be found
   `here <https://docs.nordicsemi.com/bundle/nrfutil/page/README.html>`_.
 
@@ -53,7 +56,7 @@ Boards
 * The DT binding :dtcompatible:`zephyr,native-posix-cpu` has been deprecated in favor of
   :dtcompatible:`zephyr,native-sim-cpu`.
 
-* Zephyr now supports version 1.11.3 of the :zephyr:board:`neorv32`. NEORV32 processor (SoC)
+* Zephyr now supports version 1.11.6 of the :zephyr:board:`neorv32`. NEORV32 processor (SoC)
   implementations need to be updated to this version to be compatible with Zephyr v4.2.0.
 
 * The :zephyr:board:`neorv32` now targets NEORV32 processor (SoC) templates via board variants. The
@@ -79,6 +82,16 @@ Boards
 * Espressif boards ``esp32_devkitc_wroom`` and ``esp32_devkitc_wrover`` shared almost identical features.
   The differences are covered by the Kconfig options so both boards were merged into ``esp32_devkitc``.
 
+* STM32 boards should now add OpenOCD programming support by including ``openocd-stm32.board.cmake``
+  instead of ``openocd.board.cmake``. The ``openocd-stm32.board.cmake`` file extends the default
+  OpenOCD runner with manufacturer-specific configuration like STM32 mass erase commands.
+
+* STM32N6570-DK boards's default variant (``stm32n6570_dk/stm32n657xx``) is now supposed to be a
+  chainloaded application and should be built using ``--sysbuild``. The old default,
+  which built applications to run as First Stage BootLoader, is now available as a dedicated
+  variant (``stm32n6570_dk/stm32n657xx/fsbl``) that must be selected explicitly.
+  See board documentation for more information about these variants.
+
 Device Drivers and Devicetree
 *****************************
 
@@ -88,6 +101,18 @@ Devicetree
 * Many of the vendor-specific and arch-specific files that were in dts/common have been moved
   to more specific locations. Therefore, any dts files which ``#include <common/some_file.dtsi>``
   a file from in the zephyr tree will need to be changed to just ``#include <some_file.dtsi>``.
+
+* Silicon Labs SoC-level dts files for Series 2 have been reorganized in subdirectories per device
+  superfamily. Therefore, any dts files for boards that use Series 2 SoCs will need to change their
+  include from ``#include <silabs/some_soc.dtsi>`` to ``#include <silabs/xg2[1-9]/some_soc.dtsi>``.
+
+* The :c:macro:`DT_ENUM_HAS_VALUE` and :c:macro:`DT_INST_ENUM_HAS_VALUE` macros are now
+  checking all values, when used on an array, not just the first one.
+
+* Property names in devicetree and bindings use hyphens(``-``) as separators, and replacing
+  all previously used underscores(``_``). For local code, you can migrate property names in
+  bindings to use hyphens by running the ``scripts/utils/migrate_bindings_style.py`` script.
+
 
 DAI
 ===
@@ -105,6 +130,17 @@ DMA
 
 * Renamed the devicetree property ``nxp,a_on`` to ``nxp,a-on``.
 * Renamed the devicetree property ``dma_channels`` to ``dma-channels``.
+* The binding files for Xilinx DMA controllers have been renamed to use the proper vendor prefix
+  (``xlnx`` instead of ``xilinx``) and to match their compatible string.
+
+Regulator
+=========
+
+* :dtcompatible:`nordic,npm1300-regulator` BUCK and LDO node GPIO properties are now specified as an
+  integer array without a GPIO controller, removing the requirement for a
+  :dtcompatible:`nordic,npm1300-gpio` node to be present and enabled for GPIO control of the output
+  rails. For example, ``enable-gpios = <&pmic_gpios 3 GPIO_ACTIVE_LOW>;`` is now specified as
+  ``enable-gpio-config = <3 GPIO_ACTIVE_LOW>;``.
 
 Counter
 =======
@@ -114,6 +150,14 @@ Counter
   in favor of :dtcompatible:`zephyr,native-sim-counter`.
   And :kconfig:option:`CONFIG_COUNTER_NATIVE_POSIX` and its related options with
   :kconfig:option:`CONFIG_COUNTER_NATIVE_SIM` (:github:`86616`).
+
+Display
+=======
+
+* On STM32 devices, the LTDC driver (:dtcompatible:`st,stm32-ltdc`) RGB565 format
+  ``PIXEL_FORMAT_RGB565`` has been replaced by ``PIXEL_FORMAT_BGR565`` to match
+  the format expected by Zephyr. This change ensures proper behavior of both
+  display and video capture samples.
 
 Entropy
 =======
@@ -143,7 +187,7 @@ Ethernet
   ``ETH_STM32_CARRIER_CHECK_RX_IDLE_TIMEOUT_MS``, ``ETH_STM32_AUTO_NEGOTIATION_ENABLE``,
   ``ETH_STM32_SPEED_10M``, ``ETH_STM32_MODE_HALFDUPLEX`` have been removed, as they are no longer
   needed, and the driver now uses the ethernet phy api to communicate with the phy driver, which
-  is resposible for configuring the phy settings (:github:`87593`).
+  is responsible for configuring the phy settings (:github:`87593`).
 
 * ``ethernet_native_posix`` has been renamed ``ethernet_native_tap``, and with it its
   kconfig options: :kconfig:option:`CONFIG_ETH_NATIVE_POSIX` and its related options have been
@@ -156,7 +200,7 @@ Ethernet
   :zephyr_file:`include/zephyr/net/ethernet.h` have been renamed
   to ``ETHERNET_DSA_CONDUIT_PORT`` and ``ETHERNET_DSA_USER_PORT``.
 
-* Enums for the Ethernet speed have been renamed to be more indepedent of the used medium.
+* Enums for the Ethernet speed have been renamed to be more independent of the used medium.
   ``LINK_HALF_10BASE_T``, ``LINK_FULL_10BASE_T``, ``LINK_HALF_100BASE_T``, ``LINK_FULL_100BASE_T``,
   ``LINK_HALF_1000BASE_T``, ``LINK_FULL_1000BASE_T``, ``LINK_FULL_2500BASE_T`` and
   ``LINK_FULL_5000BASE_T`` have been renamed to :c:enumerator:`LINK_HALF_10BASE`,
@@ -169,6 +213,15 @@ Ethernet
   :c:enumerator:`ETHERNET_LINK_10BASE`, :c:enumerator:`ETHERNET_LINK_100BASE`,
   :c:enumerator:`ETHERNET_LINK_1000BASE`, :c:enumerator:`ETHERNET_LINK_2500BASE` and
   :c:enumerator:`ETHERNET_LINK_5000BASE` respectively (:github:`87194`).
+
+* ``ETHERNET_CONFIG_TYPE_LINK``, ``ETHERNET_CONFIG_TYPE_DUPLEX``, ``ETHERNET_CONFIG_TYPE_AUTO_NEG``
+  and the related ``NET_REQUEST_ETHERNET_SET_LINK``, ``NET_REQUEST_ETHERNET_SET_DUPLEX``,
+  ``NET_REQUEST_ETHERNET_SET_AUTO_NEGOTIATION`` have been removed. :c:func:`phy_configure_link`
+  together with :c:func:`net_eth_get_phy` should be used instead to configure the link
+  (:github:`90652`).
+
+* :c:func:`phy_configure_link` got a ``flags`` parameter. Set it to ``0`` to preserve the old
+  behavior (:github:`91354`).
 
 Enhanced Serial Peripheral Interface (eSPI)
 ===========================================
@@ -193,12 +246,41 @@ GPIO
 * ``arduino-nano-header-r3`` is renamed to :dtcompatible:`arduino-nano-header`.
   Because the R3 comes from the Arduino UNO R3, which has changed the connector from
   the former version, and is unrelated to the Arduino Nano.
+* Moved file ``include/zephyr/dt-bindings/gpio/nordic-npm1300-gpio.h`` to
+  :zephyr_file:`include/zephyr/dt-bindings/gpio/nordic-npm13xx-gpio.h` and renamed all instances of
+  ``NPM1300`` to ``NPM13XX`` in the defines
+* Renamed ``CONFIG_GPIO_NPM1300`` to :kconfig:option:`CONFIG_GPIO_NPM13XX`,
+  ``CONFIG_GPIO_NPM1300_INIT_PRIORITY`` to :kconfig:option:`CONFIG_GPIO_NPM13XX_INIT_PRIORITY`
 
 I2S
 ===
 * The :dtcompatible:`nxp,mcux-i2s` driver added property ``mclk-output``. Set this property to
 * configure the MCLK signal as an output.  Older driver versions used the macro
 * ``I2S_OPT_BIT_CLK_SLAVE`` to configure the MCLK signal direction. (:github:`88554`)
+
+LED
+===
+
+* Renamed ``CONFIG_LED_NPM1300`` to :kconfig:option:`CONFIG_LED_NPM13XX`
+
+MFD
+===
+
+* Moved file ``include/zephyr/drivers/mfd/npm1300.h`` to :zephyr_file:`include/zephyr/drivers/mfd/npm13xx.h`
+  and renamed all instances of ``npm1300``/``NPM1300`` to ``npm13xx``/``NPM13XX`` in the enums and
+  function names
+* Renamed ``CONFIG_MFD_NPM1300`` to :kconfig:option:`CONFIG_MFD_NPM13XX`,
+  ``CONFIG_MFD_NPM1300_INIT_PRIORITY`` to :kconfig:option:`CONFIG_MFD_NPM13XX_INIT_PRIORITY`
+
+Regulator
+=========
+
+* Moved file ``include/zephyr/dt-bindings/regulator/npm1300.h`` to
+  :zephyr_file:`include/zephyr/dt-bindings/regulator/npm13xx.h` and renamed all instances of
+  ``NPM1300`` to ``NPM13XX`` in the defines
+* Renamed ``CONFIG_REGULATOR_NPM1300`` to :kconfig:option:`CONFIG_REGULATOR_NPM13XX`,
+  ``CONFIG_REGULATOR_NPM1300_COMMON_INIT_PRIORITY`` to :kconfig:option:`REGULATOR_NPM13XX_COMMON_INIT_PRIORITY`,
+  ``CONFIG_REGULATOR_NPM1300_INIT_PRIORITY`` to :kconfig:option:`CONFIG_REGULATOR_NPM13XX_INIT_PRIORITY`
 
 Sensors
 =======
@@ -214,6 +296,33 @@ Sensors
 * :dtcompatible:`meas,ms5837` has been replaced by :dtcompatible:`meas,ms5837-30ba`
   and :dtcompatible:`meas,ms5837-02ba`. In order to use one of the two variants, the
   status property needs to be used as well.
+
+* The :dtcompatible:`we,wsen-itds` driver has been renamed to
+  :dtcompatible:`we,wsen-itds-2533020201601`.
+  The Device Tree can be configured as follows:
+
+  .. code-block:: devicetree
+
+    &i2c0 {
+      itds:itds-2533020201601@19 {
+        compatible = "we,wsen-itds-2533020201601";
+        reg = <0x19>;
+        odr = "400";
+        op-mode = "high-perf";
+        power-mode = "normal";
+        events-interrupt-gpios = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+        drdy-interrupt-gpios = < &gpio1 2 GPIO_ACTIVE_HIGH >;
+      };
+    };
+
+* The binding file for :dtcompatible:`raspberrypi,pico-temp.yaml` has been renamed to have a name
+  matching the compatible string.
+
+* Moved file ``include/zephyr/drivers/sensor/npm1300_charger.h`` to
+  :zephyr_file:`include/zephyr/drivers/sensor/npm13xx_charger.h` and renamed all instances of
+  ``NPM1300`` to ``NPM13XX`` in the enums
+
+* Renamed ``CONFIG_NPM1300_CHARGER`` to :kconfig:option:`CONFIG_NPM13XX_CHARGER`
 
 Serial
 =======
@@ -241,6 +350,37 @@ Timer
 * ``native_posix_timer`` has been renamed ``native_sim_timer``, and so its kconfig option
   :kconfig:option:`CONFIG_NATIVE_POSIX_TIMER` has been deprecated in favor of
   :kconfig:option:`CONFIG_NATIVE_SIM_TIMER`, (:github:`86612`).
+
+* :dtcompatible:`andestech,machine-timer`, :dtcompatible:`neorv32-machine-timer`,
+  :dtcompatible:`telink,machine-timer`, :dtcompatible:`lowrisc,machine-timer`,
+  :dtcompatible:`niosv-machine-timer`, and :dtcompatible:`scr,machine-timer` have
+  been unified under :dtcompatible:`riscv,machine-timer`.
+
+  The addresses of both ``MTIME`` and ``MTIMECMP`` registers must now be explicitly
+  specified using the ``reg`` and ``reg-names`` properties. The ``reg-names`` property
+  is now **required**, and must list names corresponding one-to-one with each entry
+  in ``reg``. (:github:`84175` and :github:`89847`)
+
+  Example:
+
+  .. code-block:: devicetree
+
+    mtimer: timer@d1000000 {
+        compatible = "riscv,machine-timer";
+        interrupts-extended = <&cpu0_intc 7>;
+        reg = <0xd1000000 0x8
+               0xd1000008 0x8>;
+        reg-names = "mtime", "mtimecmp";
+    };
+
+* It is now possible to use a ``timebase-frequency`` property in the cpus DTS group to provide
+  the value for :kconfig:option:`CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC` instead of
+  using a value: :github:`91296`
+
+Watchdog
+========
+* Renamed ``CONFIG_WDT_NPM1300`` to :kconfig:option:`CONFIG_WDT_NPM13XX`,
+  ``CONFIG_WDT_NPM1300_INIT_PRIORITY`` to :kconfig:option:`CONFIG_WDT_NPM13XX_INIT_PRIORITY`
 
 Modem
 =====
@@ -285,6 +425,9 @@ Misc
 * All memc_flexram_* namespaced things including kconfigs and C API
   have been changed to just flexram_*.
 
+* Select ``CONFIG_ETHOS_U`` instead ``CONFIG_ARM_ETHOS_U`` to enable Ethos-U NPU driver.
+* Rename all configs that have prefix ``CONFIG_ARM_ETHOS_U_`` to ``CONFIG_ETHOS_U_``.
+
 Bluetooth
 *********
 
@@ -307,6 +450,10 @@ Bluetooth HCI
   bytes as part of the buffer payload itself. The bt_buf_set_type() and bt_buf_get_type() functions
   have been deprecated, but are still usable, with the exception that they can only be
   called once per buffer.
+
+* The :c:func:`bt_hci_cmd_create` function has been deprecated and the new :c:func:`bt_hci_cmd_alloc`
+  function should be used instead. The new function takes no parameters because the command
+  sending functions have been updated to do the command header encoding.
 
 Bluetooth Host
 ==============
@@ -374,9 +521,62 @@ Networking
   :c:macro:`HTTPS_SERVICE_DEFINE_EMPTY`, :c:macro:`HTTP_SERVICE_DEFINE` and
   :c:macro:`HTTPS_SERVICE_DEFINE`.
 
-* :kconfig:option:`NET_ZPERF` no longer includes server support by default. To use
-  the server commands, enable :kconfig:option:`NET_ZPERF_SERVER`. If server support
-  is not needed, :kconfig:option:`ZVFS_POLL_MAX` can possibly be reduced.
+* :kconfig:option:`CONFIG_NET_ZPERF` no longer includes server support by default. To use
+  the server commands, enable :kconfig:option:`CONFIG_NET_ZPERF_SERVER`. If server support
+  is not needed, :kconfig:option:`CONFIG_ZVFS_POLL_MAX` can possibly be reduced.
+
+* The L2 Wi-Fi shell now supports interface option for most commands, to accommodate this
+  change some of the existing options have been renamed. The following table
+  summarizes the changes:
+
+  +------------------------+---------------------+--------------------+
+  | Command(s)             | Old option          | New option         |
+  +------------------------+---------------------+--------------------+
+  | ``wifi connect``       | ``-i``              | ``-g``             |
+  | ``wifi ap enable``     |                     |                    |
+  +------------------------+---------------------+--------------------+
+  | ``wifi twt setup``     | ``-i``              | ``-p``             |
+  +------------------------+---------------------+--------------------+
+  | ``wifi ap config``     | ``-i``              | ``-t``             |
+  +------------------------+---------------------+--------------------+
+  | ``wifi mode``          | ``--if-index``      | ``--iface``        |
+  | ``wifi channel``       |                     |                    |
+  | ``wifi packet_filter`` |                     |                    |
+  +------------------------+---------------------+--------------------+
+
+* The :c:type:`http_response_cb_t` HTTP client response callback signature has
+  changed. The callback function now returns ``int`` instead of ``void``. This
+  allows the application to abort the HTTP connection. Existing applications
+  need to update their response callback implementations. To retain current
+  behavior, simply return 0 from the callback.
+
+* The API signature of ``net_mgmt`` event handler :c:type:`net_mgmt_event_handler_t` and
+  request handler :c:type:`net_mgmt_request_handler_t` has changed. The management event
+  type is changed from ``uint32_t`` to ``uint64_t``. The change allows event number values
+  to be bit masks instead of enum values. The layer code still stays as a enum value.
+  The :c:macro:`NET_MGMT_LAYER_CODE` and :c:macro:`NET_MGMT_GET_COMMAND` can be used to get
+  the layer code and management event command from the actual event value in the request or
+  event handlers if needed.
+
+* The socket options for ``net_mgmt`` type sockets cannot directly be network management
+  event types as those are now ``uint64_t`` and the socket option expects a normal 32 bit
+  integer value. Because of this, a new ``SO_NET_MGMT_ETHERNET_SET_QAV_PARAM``
+  and ``SO_NET_MGMT_ETHERNET_GET_QAV_PARAM`` socket options are created that will replace
+  the previously used ``NET_REQUEST_ETHERNET_GET_QAV_PARAM`` and
+  ``NET_REQUEST_ETHERNET_GET_QAV_PARAM`` options.
+
+* The DNS server resolver configuration functions :c:func:`dns_resolve_reconfigure` and
+  :c:func:`dns_resolve_reconfigure_with_interfaces` now require that the user supplies
+  the source of the DNS server information. For example when DNS server information is
+  received via DHCPv4, then :c:enumerator:`DNS_SOURCE_DHCPV4` needs to be specified.
+
+LwM2M
+=====
+
+* Accelerometer object: optional resources Y value, Z value, min range value,
+  max range value can now be used optionally as per the accelerometer object's
+  specification. Users of these resources will now need to provide a read
+  buffer.
 
 OpenThread
 ==========
@@ -478,11 +678,17 @@ OpenThread
 SPI
 ===
 
+* Renamed ``CONFIG_SPI_MCUX_LPSPI`` to :kconfig:option:`CONFIG_SPI_NXP_LPSPI`,
+  and similar for any child configs for that driver, including
+  :kconfig:option:`CONFIG_SPI_NXP_LPSPI_DMA` and :kconfig:option:`CONFIG_SPI_NXP_LPSPI_CPU`.
 * Renamed the device tree property ``port_sel`` to ``port-sel``.
 * Renamed the device tree property ``chip_select`` to ``chip-select``.
+* The binding file for :dtcompatible:`andestech,atcspi200` has been renamed to have a name
+  matching the compatible string.
 
-xSPI
-====
+
+qSPI/oSPI/xSPI
+==============
 
 * On STM32 devices, external memories device tree descriptions for size and address are now split
   in two separate properties to comply with specification recommendations.
@@ -491,7 +697,7 @@ xSPI
   is changed to ``reg = <0>;`` ``size = <DT_SIZE_M(512)>; / 512 Mbits */``.
 
   Note that the property gives the actual size of the memory device in bits.
-  Previous mapping address information is now described in xspi node at SoC dtsi level.
+  Previous mapping address information is now described in xspi, ospi or qspi nodes at SoC dtsi level.
 
 Video
 =====
@@ -499,10 +705,10 @@ Video
 * 8 bit RAW Bayer formats BGGR8 / GBRG8 / GRBG8 / RGGB8 have been renamed by adding
   a S prefix in front:
 
-  ``VIDEO_PIX_FMT_BGGR8`` becomes ``VIDEO_PIX_FMT_SBGGR8``
-  ``VIDEO_PIX_FMT_GBRG8`` becomes ``VIDEO_PIX_FMT_SGBRG8``
-  ``VIDEO_PIX_FMT_GRBG8`` becomes ``VIDEO_PIX_FMT_SGRBG8``
-  ``VIDEO_PIX_FMT_RGGB8`` becomes ``VIDEO_PIX_FMT_SRGGB8``
+  ``VIDEO_PIX_FMT_BGGR8`` becomes :c:macro:`VIDEO_PIX_FMT_SBGGR8`
+  ``VIDEO_PIX_FMT_GBRG8`` becomes :c:macro:`VIDEO_PIX_FMT_SGBRG8`
+  ``VIDEO_PIX_FMT_GRBG8`` becomes :c:macro:`VIDEO_PIX_FMT_SGRBG8`
+  ``VIDEO_PIX_FMT_RGGB8`` becomes :c:macro:`VIDEO_PIX_FMT_SRGGB8`
 
 * On STM32 devices, the DCMI driver (:dtcompatible:`st,stm32-dcmi`) now relies on endpoint based
   video-interfaces.yaml bindings for sensor interface properties (such as bus width and
@@ -511,11 +717,66 @@ Video
   :c:func:`video_set_frmival`.
   See (:github:`89627`).
 
+* :c:enum:`video_endpoint_id` has been dropped. It is no longer a parameter in any video API.
+
+* :c:enum:`video_buf_type` has been added. It is a required parameter in the following video APIs:
+  :c:func:`set_stream`, :c:func:`video_stream_start`, :c:func:`video_stream_stop`
+
+* ``video_format.pitch`` has been updated to be set explicitly by the driver, a task formerly
+  required by the application. This update enables the application to correctly allocate a buffer
+  size on a per driver basis. Existing applications will not be broken by this change but can be
+  simplified as performed in the sample in the commit ``33dcbe37cfd3593e8c6e9cfd218dd31fdd533598``.
+
+* Samples and projects using the :ref:`native simulator <native_sim>` now require specifying the
+  ``--snippet`` :ref:`video-sw-generator <snippet-video-sw-generator>` to build correctly.
+
+* :c:func:`video_query_ctrl` now takes a single argument with the :c:struct:`video_ctrl_query`,
+  which now contains a ``video_ctrl_query.dev`` field to specify and read back which device is
+  being queried (:github:`91265`).
+
+Audio
+=====
+
+* The binding file for :dtcompatible:`cirrus,cs43l22` has been renamed to have a name
+  matching the compatible string.
+
 Other subsystems
 ****************
 
+hawkBit
+=======
+
+* When :kconfig:option:`CONFIG_HAWKBIT_CUSTOM_DEVICE_ID` is enabled, device_id will no longer
+  be prepended with :kconfig:option:`CONFIG_BOARD`. It is the user's responsibility to write a
+  callback that prepends the board name if needed.
+
+State Machine Framework
+=======================
+
+* :c:func:`smf_set_handled` has been removed.
+* State run actions now return an :c:enum:`smf_state_result` value instead of void. and the return
+  code determines if the event is propagated to parent run actions or has been handled. A run action
+  that handles the event completely should return :c:enum:`SMF_EVENT_HANDLED`, and run actions that
+  propagate handling to parent states should return :c:enum:`SMF_EVENT_PROPAGATE`.
+* Flat state machines ignore the return value; returning :c:enum:`SMF_EVENT_HANDLED`
+  would be the most technically accurate response.
+
 Modules
 *******
+
+CMSIS
+=====
+
+* Cortex-M boards/socs now require the ``CMSIS_6`` module to build properly (instead of ``cmsis``
+  which was CMSIS 5.9.0).
+  If trying to build a Cortex-M board, do a ``west update`` to make sure that ``CMSIS_6`` module is
+  available before running ``west build`` or other commands.
+
+  Boards or SOCs or modules using the older ``cmsis`` module either with a local copy or via the
+  :kconfig:option:`CONFIG_ZEPHYR_CMSIS_MODULE_DIR` are requested to move to the ``CMSIS_6`` module
+  which can be accessed via the :kconfig:option:`CONFIG_ZEPHYR_CMSIS_6_MODULE_DIR` configuration.
+
+  Note: Zephyr will continue using the older ``cmsis`` module for Cortex-A and Cortex-R targets.
 
 Architectures
 *************
@@ -525,3 +786,5 @@ Architectures
   :kconfig:option:`CONFIG_ARCH_HAS_VECTOR_TABLE_RELOCATION` and
   :kconfig:option:`CONFIG_ROMSTART_RELOCATION_ROM` to support relocation
   of vector table in RAM.
+* Renamed :kconfig:option:`CONFIG_DEBUG_INFO` to :kconfig:option:`CONFIG_X86_DEBUG_INFO` to
+  better reflect its purpose. This option is now only available for x86 architecture.

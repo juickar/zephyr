@@ -207,24 +207,28 @@ static bool is_address_mapped(uint64_t *addr)
 {
 	uintptr_t *phys = NULL;
 
-	if (*addr == 0U)
+	if (*addr == 0U) {
 		return false;
+	}
 
 	/* Check alignment. */
-	if ((*addr & (sizeof(uint32_t) - 1U)) != 0U)
+	if ((*addr & (sizeof(uint32_t) - 1U)) != 0U) {
 		return false;
+	}
 
 	return !arch_page_phys_get((void *) addr, phys);
 }
 
 static bool is_valid_jump_address(uint64_t *addr)
 {
-	if (*addr == 0U)
+	if (*addr == 0U) {
 		return false;
+	}
 
 	/* Check alignment. */
-	if ((*addr & (sizeof(uint32_t) - 1U)) != 0U)
+	if ((*addr & (sizeof(uint32_t) - 1U)) != 0U) {
 		return false;
+	}
 
 	return ((*addr >= (uint64_t)__text_region_start) &&
 		(*addr <= (uint64_t)(__text_region_end)));
@@ -266,8 +270,9 @@ static void walk_stackframe(arm64_stacktrace_cb cb, void *cookie, const struct a
 		if (!is_address_mapped(fp))
 			break;
 		lr = fp[1];
-		if (!is_valid_jump_address(&lr))
+		if (!is_valid_jump_address(&lr)) {
 			break;
+		}
 		if (!cb(cookie, lr, fp)) {
 			break;
 		}
@@ -357,6 +362,10 @@ static bool z_arm64_stack_corruption_check(struct arch_esf *esf, uint64_t esr, u
 static bool is_recoverable(struct arch_esf *esf, uint64_t esr, uint64_t far,
 			   uint64_t elr)
 {
+	ARG_UNUSED(esr);
+	ARG_UNUSED(far);
+	ARG_UNUSED(elr);
+
 	if (!esf) {
 		return false;
 	}
