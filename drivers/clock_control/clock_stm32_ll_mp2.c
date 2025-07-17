@@ -85,9 +85,104 @@ static DEVICE_API(clock_control, stm32_clock_control_api) = {
 	.get_rate = stm32_clock_control_get_subsys_rate,
 };
 
+static void set_up_fixed_clock_sources(void)
+{
+	if (IS_ENABLED(STM32_HSE_ENABLED)) {
+		/* Enable HSE */
+		LL_RCC_HSE_Enable();
+		while (LL_RCC_HSE_IsReady() != 1) {
+			/* Wait for HSE ready */
+		}
+	}
+
+	if (IS_ENABLED(STM32_HSI_ENABLED)) {
+		/* Enable HSI */
+		LL_RCC_HSI_Enable();
+		while (LL_RCC_HSI_IsReady() != 1) {
+		/* Wait for HSI ready */
+		}
+	}
+}
+
+static void set_up_plls(void)
+{
+	uint32_t frefdiv = DT_PROP(DT_NODELABEL(pll1), frefdiv);
+	uint32_t fbdiv = DT_PROP(DT_NODELABEL(pll1), fbdiv);
+	uint32_t postdiv_1 = DT_PROP(DT_NODELABEL(pll1), postdiv_1);
+	uint32_t postdiv_2 = DT_PROP(DT_NODELABEL(pll1), postdiv_2);
+
+#if STM32_PLL_SRC_HSI
+
+	BUILD_ASSERT(IS_ENABLED(STM32_HSI_ENABLED),
+		     "STM32MP2 PLL1 requires HSI to be enabled!");
+
+	LL_RCC_PLL1_SetSource(LL_RCC_PLL1SOURCE_HSI);
+
+#elif STM32_PLL_SRC_HSE
+
+	BUILD_ASSERT(IS_ENABLED(STM32_HSE_ENABLED),
+		     "STM32MP2 PLL1 requires HSE to be enabled!");
+
+	LL_RCC_PLL1_SetSource(LL_RCC_PLL1SOURCE_HSE);
+
+#endif
+
+	LL_CA35SS_PLL1_Reset_output();
+
+	LL_CA35SS_PLL1_SetFREFDIV(frefdiv);
+	LL_CA35SS_PLL1_SetFBDIV(fbdiv);
+	LL_CA35SS_PLL1_SetPostDiv1(postdiv_1);
+	LL_CA35SS_PLL1_SetPostDiv2(postdiv_2);
+
+	LL_CA35SS_PLL1_Enable();
+
+	while (!LL_CA35SS_PLL1_IsReady()) {
+	};
+
+	LL_CA35SS_PLL1_Set_output();
+}
+
+static void set_up_stgen(void)
+{
+#if STM32_STGEN_SRC_HSI
+
+	BUILD_ASSERT(IS_ENABLED(STM32_HSI_ENABLED),
+		     "STM32MP2 STGEN requires HSI to be enabled!");
+
+	LL_RCC_EnableSTGEN_KerClk();
+
+	LL_RCC_SetSTGENClockSource(LL_RCC_XBAR_CLKSRC_HSI);
+
+#elif STM32_STGEN_SRC_HSE
+
+	BUILD_ASSERT(IS_ENABLED(STM32_HSE_ENABLED),
+		     "STM32MP2 STGEN requires HSE to be enabled!");
+
+	LL_RCC_EnableSTGEN_KerClk();
+
+	LL_RCC_SetSTGENClockSource(LL_RCC_XBAR_CLKSRC_HSE);
+#endif
+}
+
 static int stm32_clock_control_init(const struct device *dev)
 {
 	ARG_UNUSED(dev);
+
+#if IS_ENABLED(CONFIG_SOC_STM32MP2X_A35) || IS_ENABLED(CONFIG_SOC_STM32MP2X_A35_SMP)
+
+	LL_CA35SS_SetCA35SSClockSourceExt();
+
+	set_up_fixed_clock_sources();
+
+	set_up_plls();
+
+#if STM32_SYSCLK_SRC_PLL
+
+	LL_CA35SS_SetCA35SSClockSourcePLL1();
+
+#endif
+	set_up_stgen();
+#endif
 	return 0;
 }
 
