@@ -1,0 +1,16 @@
+identifier: stm32mp257f_ev1/stm32mp257fxx/a35
+name: ST STM32MP257F-EV1 Evaluation
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+supported:
+  - gpio
+  - uart
+  - shell
+testing:
+  ignore_tags:
+ram: 8192
+flash: 8192
+vendor: st
