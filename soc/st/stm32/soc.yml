@@ -198,6 +198,8 @@ family:
     - name: stm32mp257fxx
       cpuclusters:
       - name: m33
+      - name: a35
+      - name: a35_smp
   - name: stm32n6x
     socs:
     - name: stm32n657xx
