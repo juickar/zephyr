@@ -17,7 +17,7 @@
  * @param per STM32 peripheral name
  * @param bit Reset bit
  */
-#define STM32_RESET(per, bit) (((STM32_RESET_PERIPH_##per##) << 5U) | (bit))
+#define STM32_RESET(per, bit) (((STM32_RESET_PERIPH_##per##) << 5U) | (1 << bit))
 
 /* Reset reg */
 #define STM32_RST	0U
