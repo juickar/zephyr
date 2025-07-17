@@ -1,6 +1,7 @@
 # STMicroelectronics STM32MP2 MPU series
 #
 # Copyright (C) 2025 Savoir-faire Linux, Inc.
+# Copyright (c) 2025 STMicroelectronics
 # SPDX-License-Identifier: Apache-2.0
 
 config SOC_SERIES_STM32MP2X
@@ -10,9 +11,19 @@ config SOC_SERIES_STM32MP2X
 config SOC_SERIES
 	default "stm32mp2x" if SOC_SERIES_STM32MP2X
 
+config SOC_STM32MP2X_A35
+	bool
+	select SOC_SERIES_STM32MP2X
+
 config SOC_STM32MP2X_M33
 	bool
 	select SOC_SERIES_STM32MP2X
 
+config SOC_STM32MP2X_A35_SMP
+	bool
+	select SOC_SERIES_STM32MP2X
+
 config SOC
+	default "stm32mp257fxx" if SOC_STM32MP2X_A35
+	default "stm32mp257fxx" if SOC_STM32MP2X_A35_SMP
 	default "stm32mp257fxx" if SOC_STM32MP2X_M33
