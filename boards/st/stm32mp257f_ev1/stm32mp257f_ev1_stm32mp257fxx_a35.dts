@@ -1,0 +1,95 @@
+/*
+ * Copyright (c) 2025 STMicroelectronics
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/dts-v1/;
+
+#include <st/mp2/stm32mp257_a35.dtsi>
+#include <st/mp2/stm32mp257falx-pinctrl.dtsi>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/ {
+	model = "STMicroelectronics STM32MP257-EV board";
+	compatible = "st,stm32mp257f-ev1";
+
+	chosen {
+		zephyr,flash = &ddr_code;
+		zephyr,sram = &ddr_data;
+		zephyr,console = &usart2;
+		zephyr,shell-uart = &usart2;
+	};
+
+	cpus {
+		cpu@1 {
+			status = "disabled";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		user_button: button {
+			label = "User 1";
+			gpios = <&gpiog 8 GPIO_ACTIVE_HIGH>;
+			zephyr,code = <INPUT_KEY_0>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		blue_led_1: led_1 {
+			gpios = <&gpioj 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	aliases {
+		led0 = &blue_led_1;
+		sw0 = &user_button;
+	};
+};
+
+&clk_ext {
+	clock-frequency = <DT_FREQ_M(64)>;
+	status = "okay";
+};
+
+&clk_hsi {
+	clock-frequency = <DT_FREQ_M(64)>;
+	status = "okay";
+};
+
+&clk_hse {
+	clock-frequency = <DT_FREQ_M(40)>;
+	status = "okay";
+};
+
+&stgen {
+	clocks = <&clk_hsi>;
+	clock-frequency = <DT_FREQ_M(64)>;
+	status = "okay";
+};
+
+&pll1 {
+	clocks = <&clk_hsi>;
+	frefdiv = <8>;
+	fbdiv = <375>;
+	postdiv_1 = <1>;
+	postdiv_2 = <2>;
+	status = "okay";
+};
+
+&rcc {
+	clock-frequency = <DT_FREQ_M(1500)>;
+	clocks = <&pll1>;
+	ahb-prescaler = <1>;
+	apb1-prescaler = <1>;
+	apb2-prescaler = <1>;
+};
+
+&usart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&usart2_tx_pa4 &usart2_rx_pa8>;
+	current-speed = <115200>;
+	status = "okay";
+};

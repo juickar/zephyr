@@ -9,6 +9,9 @@ based on Arm |reg| dual-core Cortex |reg|-A35 (1.5 GHz) and Cortex |reg|-M33
 (400 MHz), and the STPMIC25APQR companion chip.
 Zephyr OS is ported to run on the Cortex |reg|-M33 core, as a coprocessor of
 the Cortex |reg|-A35 core.
+Zephyr OS is also ported to run on the Cortex |reg|-A35 core with the option
+to run with SMP enabled
+
 
 Features:
 =========
@@ -150,15 +153,15 @@ System Clock
 Cortex |reg|-A35
 ----------------
 
-Not yet supported in Zephyr.
+The Cortex |reg|-A35 Core is configured to run at a 1.5 GHz clock speed.
 
 Cortex |reg|-M33
 ----------------
 
 The Cortex |reg|-M33 Core is configured to run at a 400 MHz clock speed.
 
-Programming and Debugging
-*************************
+Programming and Debugging with the Cortex |reg|-M33
+***************************************************
 
 .. zephyr:board-supported-runners::
 
@@ -214,6 +217,88 @@ then be attached to the running Zephyr firmware using OpenOCD.
 
    $ west attach
 
+Programming and Debugging with the Cortex |reg|-A35
+***************************************************
+
+Prerequisite
+============
+
+The STM32MP257 has a DDR controller that need to be initialized before loading the Zephyr example.
+
+One method to perform this is to flash the Zephyr executable, along with the DDR initialization script, on an SD card inserted in the board. To do so, you first need to :ref:`install STM32CubeProgrammer <stm32cubeprog-flash-host-tools>` and download the `STM32MP2 starter package`_
+
+In order to debug Zephyr you will also need to `Install the STM32MP2 Developer package`_
+
+Loading
+=======
+
+Once you have downloaded the `STM32MP2 starter package`_ copy :zephyr_file:`boards/st/stm32mp257f_ev1/support/Zephyr.tsv` to ``${Path_to_MP2_Starter_Package}/en.FLASH-stm32mp2-openstlinux-6.6-yocto-scarthgap-mpu-v24.12.05/.../stm32mp2/flashlayout_st-image-weston/optee/``.
+
+Then using STM32CubeProgrammer, flash the SD card with the custom tsv file. You can take a look at how to `Populate the target and boot the image`_
+
+You can now take of the SD Card from the board and insert it in your computer.
+
+In a dedicated folder open a terminal and replace tfa with the custom one :zephyr_file:`boards/st/stm32mp257f_ev1/support/bootchain/tf-a-stm32mp257f-ev1-wrapped.stm32`:
+
+  .. code-block:: console
+      dd if=tf-a-stm32mp257f-ev1-wrapped.stm32 of=/dev/disk/by-partlabel/fsbla1 conv=fdatasync
+
+Then make a copy of the fip file and update it with the custom bl31 :zephyr_file:`boards/st/stm32mp257f_ev1/support/bootchain/bl31.bin` and bl2 :zephyr_file:`boards/st/stm32mp257f_ev1/support/bootchain/bl2.bin` and your zephyr binary file :
+
+  .. code-block:: console
+      mkdir fip
+      pv -r -p </dev/sda5> ./fip/fip.bin && sync
+
+      fiptool update --tb-fw bl2.bin fip/fip.bin
+      fiptool update --tos-fw zephyr.bin fip/fip.bin
+      fiptool update --soc-fw bl31.bin fip/fip.bin
+
+      pv -r -p >/dev/sda5 <./fip/fip.bin && sync
+
+You can now use Zephyr on the SD card.
+
+If you want to change your application on the SD Card you will only have to update the zephyr.bin in the fip
+
+Debugging
+=========
+
+.. note::
+  West commands aren't supported at the moment for the cortex A35 for this board.
+
+In order to debug Zephyr you will need the SDK from STMicroelectronics.
+
+Firstly you will need to move these files:
+  -:zephyr_file:`boards/st/stm32mp257f_ev1/support/stm32mp25x_dk_nosmp.cfg`
+  -:zephyr_file:`boards/st/stm32mp257f_ev1/support/stm32mp25x_dk_smp.cfg`
+In the ``${Path_to_Developer-Package}/SDK/sysroots/x86_64-ostl_sdk-linux/usr/share/openocd/scripts/board/`` folder.
+
+And move these files:
+  -:zephyr_file:`boards/st/stm32mp257f_ev1/support/stm32mp25x_nosmp.cfg`
+  -:zephyr_file:`boards/st/stm32mp257f_ev1/support/stm32mp25x_smp.cfg`
+In the ``${Path_to_Developer-Package}/SDK/sysroots/x86_64-ostl_sdk-linux/usr/share/openocd/scripts/targets/`` folder.
+
+Then source two consoles using:
+.. code-block:: console
+  source ${Path_to_Developer-Package}/SDK/environment-setup-cortexa35-ostl-linux
+
+In the first console, connect to the board using:
+.. code-block:: console
+  openocd -f board/stm32mp25x_dk_nosmp.cfg
+
+or if you use the smp:
+.. code-block:: console
+  openocd -f board/stm32mp25x_dk_smp.cfg -c 'init;init_smp'
+
+In the second console connect to GDB via:
+.. code-block:: console
+  $GDB -ex "target remote localhost:3333"
+
+.. note::
+  GDB have some issues to deal with architecture switch.
+  In fact during the TFA boot process we jump from aarch64 to aarch32 after the DDR init to run Zephyr.
+  You have to make sure to be in Zephyr to be able to debug without problems as GDB will stop working during the switch.
+  Moreover if you use the SMP you will need both cores to be in Zephyr as GDB cannot deal with multi architecture cores.
+
 References
 ==========
 
@@ -248,3 +333,12 @@ References
 
 .. _device-stm-openocd:
   https://github.com/STMicroelectronics/device-stm-openocd/tree/main
+
+.. _STM32MP2 starter package:
+  https://www.st.com/en/embedded-software/stm32mp2starter.html
+
+.. _Populate the target and boot the image:
+  https://wiki.stmicroelectronics.cn/stm32mpu/wiki/Getting_started/STM32MP2_boards/STM32MP257x-DK/Let%27s_start/Populate_the_target_and_boot_the_image
+
+.. _Install the STM32MP2 Developer package:
+  https://wiki.st.com/stm32mpu/wiki/STM32MPU_Developer_Package#Installing_the_SDK
