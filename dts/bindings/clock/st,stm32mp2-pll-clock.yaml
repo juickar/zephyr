@@ -1,0 +1,64 @@
+# Copyright (c) 2025 STMicroelectronics
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+  PLL node binding for STM32MP2 devices
+
+  It can be used to describe 8 different PLLs: PLL1 to PLL8
+
+  These PLLs can take one of hse_ck, hsi_ck or msi_ck as input clock.
+  PLLM factor is used to set the input clock in this acceptable range.
+
+  Each PLL has one output clock whose frequency can be computed with the
+  following formula:
+
+    f(PLLx) = (f(PLLx_REF) x FBDIVx) / (FREFDIVx × POSTDIV1_x × POSTDIV2_x)
+
+
+  Note: To reduce the power consumption, it is recommended to configure the PLLx
+        clock output to the lowest frequency.
+
+  The PLL output frequency must not exceed 3200 MHz.
+
+  Note: The CPU clock should not exceed 1.5Ghz so avoid configuring the PLL1 to more
+  than 1500 MHz
+  (refer to the stm32mp2 reference manual for details)
+
+compatible: "st,stm32mp2-pll-clock"
+
+include: [clock-controller.yaml, base.yaml]
+
+properties:
+
+  "#clock-cells":
+    const: 0
+
+  clocks:
+    required: true
+
+  frefdiv:
+    type: int
+    required: true
+    description: |
+        Prescaler for PLLx
+        input clock
+        Valid range: 1 - 63
+
+  fbdiv:
+    type: int
+    required: true
+    description: |
+        PLLx multiplication factor
+        Valid range: 16 - 2500
+
+  postdiv_1:
+    type: int
+    description: |
+        PLLx POSTDIV1_x division factor
+        Valid range: 1 - 7
+
+  postdiv_2:
+    type: int
+    description: |
+        PLLx POSTDIV2_x division factor
+        Valid range: 1 - 7
