@@ -1,6 +1,7 @@
 # STMicroelectronics STM32MP2 MPU series
 #
 # Copyright (C) 2025 Savoir-faire Linux, Inc.
+# Copyright (c) 2025 STMicroelectronics
 # SPDX-License-Identifier: Apache-2.0
 
 if SOC_STM32MP2X_M33
@@ -9,3 +10,23 @@ config NUM_IRQS
 	default 320
 
 endif # SOC_STM32MP2X_M33
+
+if SOC_STM32MP2X_A35 || SOC_STM32MP2X_A35_SMP
+
+if SOC_STM32MP2X_A35_SMP
+
+config SMP
+	default y
+
+config MP_MAX_NUM_CPUS
+	default 2 if SMP
+
+config USE_SWITCH
+	default y
+
+endif #SOC_STM32MP2X_A35_SMP
+
+config NUM_IRQS
+	default 415
+
+endif # SOC_STM32MP2X_A35 || SOC_STM32MP2X_A35_SMP
