@@ -153,6 +153,9 @@
 #if DT_SAME_NODE(DT_RCC_CLOCKS_CTRL, DT_NODELABEL(ic2))
 #define STM32_SYSCLK_SRC_IC2	1
 #endif
+#if DT_SAME_NODE(DT_RCC_CLOCKS_CTRL, DT_NODELABEL(clk_ext))
+#define STM32_SYSCLK_SRC_EXT	1
+#endif
 
 #if DT_NODE_HAS_COMPAT_STATUS(DT_NODELABEL(rcc), st_stm32n6_rcc, okay)
 #if (DT_SAME_NODE(DT_CLOCKS_CTLR_BY_IDX(DT_NODELABEL(cpusw), 0), DT_NODELABEL(rcc)))
@@ -661,6 +664,16 @@
 #define STM32_IC20_DIV		DT_PROP(DT_NODELABEL(ic20), ic_div)
 #endif
 
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(stgen)) && \
+	DT_NODE_HAS_PROP(DT_NODELABEL(stgen), clocks)
+#define DT_STGEN_CLOCKS_CTRL	DT_CLOCKS_CTLR(DT_NODELABEL(stgen))
+#if DT_SAME_NODE(DT_STGEN_CLOCKS_CTRL, DT_NODELABEL(clk_hse))
+#define STM32_STGEN_SRC_HSE	1
+#endif
+#if DT_SAME_NODE(DT_STGEN_CLOCKS_CTRL, DT_NODELABEL(clk_hsi))
+#define STM32_STGEN_SRC_HSI	1
+#endif
+#endif
 /** Driver structure definition */
 
 struct stm32_pclken {
