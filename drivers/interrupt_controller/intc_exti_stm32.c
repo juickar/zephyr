@@ -277,8 +277,10 @@ void stm32_gpio_intc_enable_line(stm32_gpio_irq_line_t line)
 	/* Enable requested line interrupt */
 #if defined(CONFIG_SOC_SERIES_STM32H7X) && defined(CONFIG_CPU_CORTEX_M4)
 	LL_C2_EXTI_EnableIT_0_31(line);
-#elif defined(CONFIG_SOC_SERIES_STM32MP2X)
+#elif defined(CONFIG_SOC_SERIES_STM32MP2X) && defined(CONFIG_CPU_CORTEX_M33)
 	LL_C2_EXTI_EnableIT_0_31(EXTI2, line);
+#elif defined(CONFIG_SOC_SERIES_STM32MP2X) && defined(CONFIG_CPU_CORTEX_A35)
+	LL_C1_EXTI_EnableIT_0_31(EXTI2, line);
 #else
 	LL_EXTI_EnableIT_0_31(line);
 #endif
@@ -291,8 +293,10 @@ void stm32_gpio_intc_disable_line(stm32_gpio_irq_line_t line)
 {
 #if defined(CONFIG_SOC_SERIES_STM32H7X) && defined(CONFIG_CPU_CORTEX_M4)
 	LL_C2_EXTI_DisableIT_0_31(line);
-#elif defined(CONFIG_SOC_SERIES_STM32MP2X)
+#elif defined(CONFIG_SOC_SERIES_STM32MP2X) && defined(CONFIG_CPU_CORTEX_M33)
 	LL_C2_EXTI_DisableIT_0_31(EXTI2, line);
+#elif defined(CONFIG_SOC_SERIES_STM32MP2X) && defined(CONFIG_CPU_CORTEX_A35)
+	LL_C1_EXTI_DisableIT_0_31(EXTI2, line);
 #else
 	LL_EXTI_DisableIT_0_31(line);
 #endif
