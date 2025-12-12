@@ -582,7 +582,9 @@ static void spi_stm32_msg_start(const struct device *dev, bool is_rx_empty)
 {
 	const struct spi_stm32_config *cfg = dev->config;
 	SPI_TypeDef *spi = cfg->spi;
-
+	while (ll_func_rx_is_not_empty(spi)) {
+		(void)LL_SPI_ReceiveData8(spi);
+	}
 	ARG_UNUSED(is_rx_empty);
 
 #if defined(CONFIG_SPI_STM32_INTERRUPT) && defined(CONFIG_SOC_SERIES_STM32H7X)
