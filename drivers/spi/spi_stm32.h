@@ -22,7 +22,8 @@ typedef void (*irq_config_func_t)(const struct device *port);
 struct spi_stm32_config {
 	SPI_TypeDef *spi;
 	const struct pinctrl_dev_config *pcfg;
-#ifdef CONFIG_SPI_STM32_INTERRUPT
+#if defined(CONFIG_SPI_STM32_INTERRUPT) ||                                                         \
+	(defined(CONFIG_SPI_STM32_DMA) && defined(CONFIG_SPI_RTIO))
 	irq_config_func_t irq_config;
 #ifdef CONFIG_SOC_SERIES_STM32H7X
 	uint32_t irq_line;
@@ -71,7 +72,9 @@ struct spi_stm32_data {
 #endif /* CONFIG_SPI_RTIO */
 	struct spi_context ctx;
 #ifdef CONFIG_SPI_STM32_DMA
+#ifndef CONFIG_SPI_RTIO
 	struct k_sem status_sem;
+#endif /* CONFIG_SPI_RTIO */
 	volatile uint32_t status_flags;
 	struct stream dma_rx;
 	struct stream dma_tx;
