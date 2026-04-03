@@ -21,11 +21,17 @@ LOG_MODULE_REGISTER(mdio_stm32_hal, CONFIG_MDIO_LOG_LEVEL);
 
 #define DT_DRV_COMPAT st_stm32_mdio
 
+#ifndef CONFIG_STM32_HAL2
 #define ADIN1100_REG_VALUE_MASK		GENMASK(15, 0)
+#endif /* !CONFIG_STM32_HAL2 */
 
 struct mdio_stm32_data {
 	struct k_sem sem;
+#ifdef CONFIG_STM32_HAL2
+	hal_eth_handle_t heth;
+#else
 	ETH_HandleTypeDef heth;
+#endif /* CONFIG_STM32_HAL2 */
 };
 
 struct mdio_stm32_config {
@@ -37,19 +43,27 @@ static int mdio_stm32_read(const struct device *dev, uint8_t prtad,
 			   uint8_t regad, uint16_t *data)
 {
 	struct mdio_stm32_data *const dev_data = dev->data;
+
+#ifdef CONFIG_STM32_HAL2
+	hal_eth_handle_t *heth = &dev_data->heth;
+	hal_status_t ret;
+	uint16_t read;
+#else
 	ETH_HandleTypeDef *heth = &dev_data->heth;
 	HAL_StatusTypeDef ret;
 	uint32_t read;
+#endif /* CONFIG_STM32_HAL2 */
 
 	k_sem_take(&dev_data->sem, K_FOREVER);
 
-#ifdef CONFIG_ETH_STM32_HAL_API_V2
+#ifdef CONFIG_STM32_HAL2
+	ret = HAL_ETH_MDIO_C22ReadData(heth, prtad, regad, &read);
+#elif defined(CONFIG_ETH_STM32_HAL_API_V2)
 	ret = HAL_ETH_ReadPHYRegister(heth, prtad, regad, &read);
 #else
 	heth->Init.PhyAddress = prtad;
-
 	ret = HAL_ETH_ReadPHYRegister(heth, regad, &read);
-#endif
+#endif /* CONFIG_STM32_HAL2 */
 
 	k_sem_give(&dev_data->sem);
 
@@ -57,8 +71,11 @@ static int mdio_stm32_read(const struct device *dev, uint8_t prtad,
 		return -EIO;
 	}
 
+#ifdef CONFIG_STM32_HAL2
+	*data = read;
+#else
 	*data = read & ADIN1100_REG_VALUE_MASK;
-
+#endif /* CONFIG_STM32_HAL2 */
 	return 0;
 }
 
@@ -66,18 +83,24 @@ static int mdio_stm32_write(const struct device *dev, uint8_t prtad,
 			    uint8_t regad, uint16_t data)
 {
 	struct mdio_stm32_data *const dev_data = dev->data;
+#ifdef CONFIG_STM32_HAL2
+	hal_eth_handle_t *heth = &dev_data->heth;
+	hal_status_t ret;
+#else
 	ETH_HandleTypeDef *heth = &dev_data->heth;
 	HAL_StatusTypeDef ret;
+#endif /* CONFIG_STM32_HAL2 */
 
 	k_sem_take(&dev_data->sem, K_FOREVER);
 
-#ifdef CONFIG_ETH_STM32_HAL_API_V2
+#ifdef CONFIG_STM32_HAL2
+	ret = HAL_ETH_MDIO_C22WriteData(heth, prtad, regad, data);
+#elif defined(CONFIG_ETH_STM32_HAL_API_V2)
 	ret = HAL_ETH_WritePHYRegister(heth, prtad, regad, data);
 #else
 	heth->Init.PhyAddress = prtad;
-
 	ret = HAL_ETH_WritePHYRegister(heth, regad, data);
-#endif
+#endif /* CONFIG_STM32_HAL2 */
 
 	k_sem_give(&dev_data->sem);
 
@@ -140,7 +163,11 @@ static int mdio_stm32_init(const struct device *dev)
 {
 	struct mdio_stm32_data *const dev_data = dev->data;
 	const struct mdio_stm32_config *const config = dev->config;
+#ifdef CONFIG_STM32_HAL2
+	hal_eth_handle_t *heth = &dev_data->heth;
+#else
 	ETH_HandleTypeDef *heth = &dev_data->heth;
+#endif /* CONFIG_STM32_HAL2 */
 	int ret;
 
 	/* enable clock */
@@ -156,7 +183,9 @@ static int mdio_stm32_init(const struct device *dev)
 		return ret;
 	}
 
-#ifdef CONFIG_ETH_STM32_HAL_API_V2
+#ifdef CONFIG_STM32_HAL2
+	HAL_ETH_MDIO_UpdateClockRange(heth);
+#elif defined(CONFIG_ETH_STM32_HAL_API_V2)
 	HAL_ETH_SetMDIOClockRange(heth);
 #else
 	/* The legacy V1 HAL API does not provide a way to set the MDC clock range
@@ -164,7 +193,7 @@ static int mdio_stm32_init(const struct device *dev)
 	 * based on what the V1 HAL performs in HAL_ETH_Init().
 	 */
 	eth_set_mdio_clock_range_for_hal_v1(heth);
-#endif
+#endif /* CONFIG_STM32_HAL2 */
 
 	k_sem_init(&dev_data->sem, 1, 1);
 
@@ -176,6 +205,26 @@ static DEVICE_API(mdio, mdio_stm32_api) = {
 	.write = mdio_stm32_write,
 };
 
+#ifdef CONFIG_STM32_HAL2
+#define MDIO_STM32_HAL_DEVICE(inst)                                                                \
+	PINCTRL_DT_INST_DEFINE(inst);                                                              \
+                                                                                                   \
+	static struct mdio_stm32_data mdio_stm32_data_##inst = {                                   \
+		.heth = {.instance = (hal_eth_t)DT_REG_ADDR(DT_INST_PARENT(inst))},                \
+	};                                                                                         \
+	static struct mdio_stm32_config mdio_stm32_config_##inst = {                               \
+		.pincfg = PINCTRL_DT_INST_DEV_CONFIG_GET(inst),                                    \
+		.pclken =                                                                          \
+			{                                                                          \
+				.bus = DT_CLOCKS_CELL_BY_NAME(DT_INST_PARENT(inst), stm_eth, bus), \
+				.enr = DT_CLOCKS_CELL_BY_NAME(DT_INST_PARENT(inst), stm_eth,       \
+							      bits),                               \
+			},                                                                         \
+	};                                                                                         \
+	DEVICE_DT_INST_DEFINE(inst, &mdio_stm32_init, NULL, &mdio_stm32_data_##inst,               \
+			      &mdio_stm32_config_##inst, POST_KERNEL, CONFIG_MDIO_INIT_PRIORITY,   \
+			      &mdio_stm32_api);
+#else
 #define MDIO_STM32_HAL_DEVICE(inst)                                                                \
 	PINCTRL_DT_INST_DEFINE(inst);                                                              \
                                                                                                    \
@@ -189,5 +238,6 @@ static DEVICE_API(mdio, mdio_stm32_api) = {
 	DEVICE_DT_INST_DEFINE(inst, &mdio_stm32_init, NULL, &mdio_stm32_data_##inst,               \
 			      &mdio_stm32_config_##inst, POST_KERNEL, CONFIG_MDIO_INIT_PRIORITY,   \
 			      &mdio_stm32_api);
+#endif /* CONFIG_STM32_HAL2 */
 
 DT_INST_FOREACH_STATUS_OKAY(MDIO_STM32_HAL_DEVICE)
