@@ -25,6 +25,9 @@ tests:
     platform_exclude: &secure_storage_platform_exclude
       - qemu_x86/atom # storing 1324 bytes fails
       - mps2/an385 # stack overflow
+      - stm32n6570_dk # secure storage state persists across flashes
+      - nucleo_l152re/stm32l152xe # secure storage state persists across flashes
+      - nucleo_f746zg/stm32f746xx # secure storage state persists across flashes
     tags:
       - secure_storage.psa
   net.tls_credentials.protected_storage.secure_storage.parse_crt:

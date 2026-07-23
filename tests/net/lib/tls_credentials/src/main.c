@@ -53,6 +53,13 @@ static void test_credential_add(void)
 {
 	int ret, i;
 
+	/* Clean up any existing credentials from previous test runs */
+	for (i = 0; i < CONFIG_TLS_MAX_CREDENTIALS_NUMBER; i++) {
+		tls_credential_delete(i, TLS_CREDENTIAL_CA_CERTIFICATE);
+		tls_credential_delete(i, TLS_CREDENTIAL_PUBLIC_CERTIFICATE);
+		tls_credential_delete(i, TLS_CREDENTIAL_PRIVATE_KEY);
+	}
+
 	for (i = 0; i < CONFIG_TLS_MAX_CREDENTIALS_NUMBER - 2; i++) {
 		ret = tls_credential_add(i, TLS_CREDENTIAL_CA_CERTIFICATE,
 					 test_ca_cert, sizeof(test_ca_cert));
