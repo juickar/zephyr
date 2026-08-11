@@ -219,64 +219,62 @@ static int xspi_write_access(struct flash_stm32_xspi_data *dev_data,
  * Gives a XSPI_RegularCmdTypeDef with all parameters set
  * except Instruction, Address, DummyCycles, NbData
  */
-static XSPI_RegularCmdTypeDef xspi_prepare_cmd(const uint8_t transfer_mode,
-						    const uint8_t transfer_rate)
+static void xspi_prepare_cmd(XSPI_RegularCmdTypeDef *cmd_tmp,
+				 const uint8_t transfer_mode,
+				 const uint8_t transfer_rate)
 {
-	XSPI_RegularCmdTypeDef cmd_tmp;
+	stm32_xspi_memset(cmd_tmp, 0U, sizeof(*cmd_tmp));
 
-	stm32_xspi_memset(&cmd_tmp, 0U, sizeof(cmd_tmp));
-
-	cmd_tmp.OperationType = HAL_XSPI_OPTYPE_COMMON_CFG;
-	cmd_tmp.InstructionWidth = ((transfer_mode == XSPI_OCTO_MODE)
+	cmd_tmp->OperationType = HAL_XSPI_OPTYPE_COMMON_CFG;
+	cmd_tmp->InstructionWidth = ((transfer_mode == XSPI_OCTO_MODE)
 			? HAL_XSPI_INSTRUCTION_16_BITS
 			: HAL_XSPI_INSTRUCTION_8_BITS);
-	cmd_tmp.InstructionDTRMode = ((transfer_rate == XSPI_DTR_TRANSFER)
+	cmd_tmp->InstructionDTRMode = ((transfer_rate == XSPI_DTR_TRANSFER)
 			? HAL_XSPI_INSTRUCTION_DTR_ENABLE
 			: HAL_XSPI_INSTRUCTION_DTR_DISABLE);
-	cmd_tmp.AddressDTRMode = ((transfer_rate == XSPI_DTR_TRANSFER)
+	cmd_tmp->AddressDTRMode = ((transfer_rate == XSPI_DTR_TRANSFER)
 			? HAL_XSPI_ADDRESS_DTR_ENABLE
 			: HAL_XSPI_ADDRESS_DTR_DISABLE);
 	/* AddressWidth must be set to 32bits for init and mem config phase */
-	cmd_tmp.AddressWidth = HAL_XSPI_ADDRESS_32_BITS;
-	cmd_tmp.AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
-	cmd_tmp.DataDTRMode = ((transfer_rate == XSPI_DTR_TRANSFER)
+	cmd_tmp->AddressWidth = HAL_XSPI_ADDRESS_32_BITS;
+	cmd_tmp->AlternateBytesMode = HAL_XSPI_ALT_BYTES_NONE;
+	cmd_tmp->DataDTRMode = ((transfer_rate == XSPI_DTR_TRANSFER)
 			? HAL_XSPI_DATA_DTR_ENABLE
 			: HAL_XSPI_DATA_DTR_DISABLE);
-	cmd_tmp.DQSMode = (transfer_rate == XSPI_DTR_TRANSFER)
+	cmd_tmp->DQSMode = (transfer_rate == XSPI_DTR_TRANSFER)
 			? HAL_XSPI_DQS_ENABLE
 			: HAL_XSPI_DQS_DISABLE;
 #ifdef XSPI_CCR_SIOO
-	cmd_tmp.SIOOMode = HAL_XSPI_SIOO_INST_EVERY_CMD;
+	cmd_tmp->SIOOMode = HAL_XSPI_SIOO_INST_EVERY_CMD;
 #endif /* XSPI_CCR_SIOO */
 
 	switch (transfer_mode) {
 	case XSPI_OCTO_MODE: {
-		cmd_tmp.InstructionMode = HAL_XSPI_INSTRUCTION_8_LINES;
-		cmd_tmp.AddressMode = HAL_XSPI_ADDRESS_8_LINES;
-		cmd_tmp.DataMode = HAL_XSPI_DATA_8_LINES;
+		cmd_tmp->InstructionMode = HAL_XSPI_INSTRUCTION_8_LINES;
+		cmd_tmp->AddressMode = HAL_XSPI_ADDRESS_8_LINES;
+		cmd_tmp->DataMode = HAL_XSPI_DATA_8_LINES;
 		break;
 	}
 	case XSPI_QUAD_MODE: {
-		cmd_tmp.InstructionMode = HAL_XSPI_INSTRUCTION_4_LINES;
-		cmd_tmp.AddressMode = HAL_XSPI_ADDRESS_4_LINES;
-		cmd_tmp.DataMode = HAL_XSPI_DATA_4_LINES;
+		cmd_tmp->InstructionMode = HAL_XSPI_INSTRUCTION_4_LINES;
+		cmd_tmp->AddressMode = HAL_XSPI_ADDRESS_4_LINES;
+		cmd_tmp->DataMode = HAL_XSPI_DATA_4_LINES;
 		break;
 	}
 	case XSPI_DUAL_MODE: {
-		cmd_tmp.InstructionMode = HAL_XSPI_INSTRUCTION_2_LINES;
-		cmd_tmp.AddressMode = HAL_XSPI_ADDRESS_2_LINES;
-		cmd_tmp.DataMode = HAL_XSPI_DATA_2_LINES;
+		cmd_tmp->InstructionMode = HAL_XSPI_INSTRUCTION_2_LINES;
+		cmd_tmp->AddressMode = HAL_XSPI_ADDRESS_2_LINES;
+		cmd_tmp->DataMode = HAL_XSPI_DATA_2_LINES;
 		break;
 	}
 	default: {
-		cmd_tmp.InstructionMode = HAL_XSPI_INSTRUCTION_1_LINE;
-		cmd_tmp.AddressMode = HAL_XSPI_ADDRESS_1_LINE;
-		cmd_tmp.DataMode = HAL_XSPI_DATA_1_LINE;
+		cmd_tmp->InstructionMode = HAL_XSPI_INSTRUCTION_1_LINE;
+		cmd_tmp->AddressMode = HAL_XSPI_ADDRESS_1_LINE;
+		cmd_tmp->DataMode = HAL_XSPI_DATA_1_LINE;
 		break;
 	}
 	}
 
-	return cmd_tmp;
 }
 
 static uint32_t stm32_xspi_hal_address_size(const struct flash_stm32_xspi_data *dev_data)
@@ -299,7 +297,8 @@ static int stm32_xspi_read_jedec_id(const struct device *dev)
 	struct flash_stm32_xspi_data *dev_data = dev->data;
 
 	/* This is a SPI/STR command to issue to the external Flash device */
-	XSPI_RegularCmdTypeDef cmd = xspi_prepare_cmd(XSPI_SPI_MODE, XSPI_STR_TRANSFER);
+	XSPI_RegularCmdTypeDef cmd;
+	xspi_prepare_cmd(&cmd, XSPI_SPI_MODE, XSPI_STR_TRANSFER);
 
 	cmd.Instruction = JESD216_CMD_READ_ID;
 	cmd.AddressWidth = stm32_xspi_hal_address_size(dev_data);
@@ -362,8 +361,8 @@ static int stm32_xspi_read_sfdp(const struct device *dev, off_t addr,
 	const struct flash_stm32_xspi_config *dev_cfg = dev->config;
 	struct flash_stm32_xspi_data *dev_data = dev->data;
 
-	XSPI_RegularCmdTypeDef cmd = xspi_prepare_cmd(dev_cfg->data_mode,
-							    dev_cfg->data_rate);
+	XSPI_RegularCmdTypeDef cmd;
+	xspi_prepare_cmd(&cmd, dev_cfg->data_mode, dev_cfg->data_rate);
 	if (dev_cfg->data_mode == XSPI_OCTO_MODE) {
 		cmd.Instruction = JESD216_OCMD_READ_SFDP;
 		cmd.DummyCycles = 20U;
@@ -468,7 +467,8 @@ static int stm32_xspi_mem_erased(struct flash_stm32_xspi_data *dev_data,
 		uint8_t nor_mode, uint8_t nor_rate)
 {
 	XSPI_AutoPollingTypeDef s_config;
-	XSPI_RegularCmdTypeDef s_command = xspi_prepare_cmd(nor_mode, nor_rate);
+	XSPI_RegularCmdTypeDef s_command;
+	xspi_prepare_cmd(&s_command, nor_mode, nor_rate);
 
 	/* Configure automatic polling mode command to wait for memory ready */
 	if (nor_mode == XSPI_OCTO_MODE) {
@@ -517,7 +517,8 @@ static int stm32_xspi_mem_ready(struct flash_stm32_xspi_data *dev_data,
 		uint8_t nor_mode, uint8_t nor_rate)
 {
 	XSPI_AutoPollingTypeDef s_config;
-	XSPI_RegularCmdTypeDef s_command = xspi_prepare_cmd(nor_mode, nor_rate);
+	XSPI_RegularCmdTypeDef s_command;
+	xspi_prepare_cmd(&s_command, nor_mode, nor_rate);
 
 	stm32_xspi_memset(&s_config, 0U, sizeof(s_config));
 	/* Configure automatic polling mode command to wait for memory ready */
@@ -561,7 +562,8 @@ static int stm32_xspi_write_enable(struct flash_stm32_xspi_data *dev_data,
 		uint8_t nor_mode, uint8_t nor_rate)
 {
 	XSPI_AutoPollingTypeDef s_config;
-	XSPI_RegularCmdTypeDef s_command = xspi_prepare_cmd(nor_mode, nor_rate);
+	XSPI_RegularCmdTypeDef s_command;
+	xspi_prepare_cmd(&s_command, nor_mode, nor_rate);
 
 	stm32_xspi_memset(&s_config, 0U, sizeof(s_config));
 	/* Initialize the write enable command */
@@ -624,8 +626,8 @@ static int xspi_write_unprotect(const struct device *dev)
 	struct flash_stm32_xspi_data *dev_data = dev->data;
 
 	/* This is a SPI/STR command to issue to the external Flash device */
-	XSPI_RegularCmdTypeDef cmd_unprotect = xspi_prepare_cmd(XSPI_SPI_MODE,
-									XSPI_STR_TRANSFER);
+	XSPI_RegularCmdTypeDef cmd_unprotect;
+	xspi_prepare_cmd(&cmd_unprotect, XSPI_SPI_MODE, XSPI_STR_TRANSFER);
 
 	cmd_unprotect.Instruction = SPI_NOR_CMD_ULBPR;
 	cmd_unprotect.InstructionMode = HAL_XSPI_INSTRUCTION_1_LINE;
@@ -644,7 +646,8 @@ static int xspi_write_unprotect(const struct device *dev)
 static int stm32_xspi_write_cfg2reg_dummy(const struct device *dev,
 					uint8_t nor_mode, uint8_t nor_rate)
 {
-	XSPI_RegularCmdTypeDef s_command = xspi_prepare_cmd(nor_mode, nor_rate);
+	XSPI_RegularCmdTypeDef s_command;
+	xspi_prepare_cmd(&s_command, nor_mode, nor_rate);
 	const struct flash_stm32_xspi_config *dev_cfg = dev->config;
 	struct flash_stm32_xspi_data *dev_data = dev->data;
 	uint8_t transmit_data;
@@ -684,7 +687,8 @@ static int stm32_xspi_write_cfg2reg_dummy(const struct device *dev,
 static int stm32_xspi_write_cfg2reg_io(XSPI_HandleTypeDef *hxspi,
 				       uint8_t nor_mode, uint8_t nor_rate, uint8_t op_enable)
 {
-	XSPI_RegularCmdTypeDef s_command = xspi_prepare_cmd(nor_mode, nor_rate);
+	XSPI_RegularCmdTypeDef s_command;
+	xspi_prepare_cmd(&s_command, nor_mode, nor_rate);
 
 	/* Initialize the writing of configuration register 2 */
 	s_command.Instruction = (nor_mode == XSPI_SPI_MODE)
@@ -714,7 +718,8 @@ static int stm32_xspi_write_cfg2reg_io(XSPI_HandleTypeDef *hxspi,
 static int stm32_xspi_read_cfg2reg(XSPI_HandleTypeDef *hxspi,
 				   uint8_t nor_mode, uint8_t nor_rate, uint8_t *value)
 {
-	XSPI_RegularCmdTypeDef s_command = xspi_prepare_cmd(nor_mode, nor_rate);
+	XSPI_RegularCmdTypeDef s_command;
+	xspi_prepare_cmd(&s_command, nor_mode, nor_rate);
 
 	/* Initialize the writing of configuration register 2 */
 	s_command.Instruction = (nor_mode == XSPI_SPI_MODE)
@@ -1348,8 +1353,8 @@ static int flash_stm32_xspi_read(const struct device *dev, off_t addr,
        * || CONFIG_FLASH_STM32_XSPI_XIP_RELOCATE
        */
 
-	XSPI_RegularCmdTypeDef cmd = xspi_prepare_cmd(dev_cfg->data_mode,
-							    dev_cfg->data_rate);
+	XSPI_RegularCmdTypeDef cmd;
+	xspi_prepare_cmd(&cmd, dev_cfg->data_mode, dev_cfg->data_rate);
 
 	if (dev_cfg->data_mode != XSPI_OCTO_MODE) {
 		switch (dev_data->read_mode) {
@@ -1446,7 +1451,8 @@ static int flash_stm32_xspi_write(const struct device *dev, off_t addr,
 	const off_t write_addr = addr;
 	const size_t write_size = size;
 	/* Build page-program command before entering XSPI critical section. */
-	XSPI_RegularCmdTypeDef cmd_pp = xspi_prepare_cmd(data_mode, data_rate);
+	XSPI_RegularCmdTypeDef cmd_pp;
+	xspi_prepare_cmd(&cmd_pp, data_mode, data_rate);
 
 	xspi_lock_thread(dev);
 
