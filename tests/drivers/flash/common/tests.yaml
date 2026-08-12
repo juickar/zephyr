@@ -3,6 +3,15 @@ common:
     - drivers
     - flash
 tests:
+  drivers.flash.common.stm32h7s_xspi_xip:
+    sysbuild: true
+    platform_allow:
+      - stm32h7s78_dk/stm32h7s7xx/ext_flash_app
+    integration_platforms:
+      - stm32h7s78_dk/stm32h7s7xx/ext_flash_app
+    extra_configs:
+      - CONFIG_FLASH_STM32_XSPI_XIP_RELOCATE=y
+      - CONFIG_CODE_DATA_RELOCATION_SRAM=y
   drivers.flash.common.nrf_qspi_nor:
     platform_allow: nrf52840dk/nrf52840
     extra_args: EXTRA_CONF_FILE=boards/nrf52840dk_nrf52840_qspi_nor.conf
@@ -68,6 +77,7 @@ tests:
       - nrf54lm20dk/nrf54lm20a/cpuapp
       - nrf54lm20dk/nrf54lm20b/cpuapp
       - nrf54h20dk/nrf54h20/cpuapp
+      - stm32h7s78_dk/stm32h7s7xx/ext_flash_app
       - kit_pse84_eval/pse846gps2dbzc4a/m33
       - kit_pse84_eval/pse846gps2dbzc4a/m33/ns
       - kit_pse84_eval/pse846gps2dbzc4a/m55
@@ -192,6 +202,7 @@ tests:
       - nucleo_g474re
     platform_exclude:
       - nucleo_wb55rg
+      - stm32h7s78_dk/stm32h7s7xx/ext_flash_app
   drivers.flash.common.non_quad_mode:
     extra_args:
       - EXTRA_DTC_OVERLAY_FILE=boards/mx25r64_non_quad.overlay
@@ -208,6 +219,7 @@ tests:
     platform_exclude:
       - beagleconnect_freedom@C5/cc1352p
       - beagleconnect_freedom@C7/cc1352p7
+      - stm32h7s78_dk/stm32h7s7xx/ext_flash_app
       - nrf54lm20dk/nrf54lm20a/cpuapp
       - nrf54lm20dk/nrf54lm20b/cpuapp
       - kit_pse84_eval/pse846gps2dbzc4a/m33
