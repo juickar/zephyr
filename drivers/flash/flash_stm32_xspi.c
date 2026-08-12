@@ -469,6 +469,7 @@ static int stm32_xspi_mem_erased(struct flash_stm32_xspi_data *dev_data,
 	XSPI_AutoPollingTypeDef s_config;
 	XSPI_RegularCmdTypeDef s_command;
 	xspi_prepare_cmd(&s_command, nor_mode, nor_rate);
+	stm32_xspi_memset(&s_config, 0U, sizeof(s_config));
 
 	/* Configure automatic polling mode command to wait for memory ready */
 	if (nor_mode == XSPI_OCTO_MODE) {
