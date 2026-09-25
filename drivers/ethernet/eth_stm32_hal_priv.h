@@ -31,8 +31,10 @@
 #define __eth_stm32_desc __dtcm_noinit_section
 #define __eth_stm32_buf  __dtcm_noinit_section
 #elif defined(CONFIG_SOC_SERIES_STM32H7X) || defined(CONFIG_SOC_SERIES_STM32H7RSX)
-#define __eth_stm32_desc __attribute__((section(".eth_stm32_desc")))
-#define __eth_stm32_buf  __attribute__((section(".eth_stm32_buf")))
+#define ETH_DMA_REGION DT_PHANDLE(DT_NODELABEL(mac), memory_regions)
+#define ETH_SECTION Z_GENERIC_SECTION(LINKER_DT_NODE_REGION_NAME_TOKEN(ETH_DMA_REGION))
+#define __eth_stm32_desc __aligned(32) ETH_SECTION
+#define __eth_stm32_buf  __aligned(256) ETH_SECTION
 #elif defined(CONFIG_SOC_SERIES_STM32MP13X)
 #define ETH_DMA_REGION  DT_INST_PHANDLE(0, memory_regions)
 #define ETH_SECTION Z_GENERIC_SECTION(LINKER_DT_NODE_REGION_NAME_TOKEN(ETH_DMA_REGION))
@@ -123,6 +125,15 @@ struct eth_stm32_dma_desc {
 	ETH_DMADescTypeDef tx_desc[ETH_TXBUFNB];
 #endif
 };
+
+#if defined(CONFIG_SOC_SERIES_STM32H7X) || defined(CONFIG_SOC_SERIES_STM32H7RSX)
+BUILD_ASSERT(DT_REG_SIZE(ETH_DMA_REGION) >= 16U * 1024U,
+             "Ethernet DMA region must be at least 16 KiB");
+BUILD_ASSERT(sizeof(struct eth_stm32_dma_desc) <= 256U,
+             "Ethernet DMA descriptors exceed the 256-byte MPU region");
+BUILD_ASSERT(sizeof(struct eth_stm32_dma_buf) <= 16U * 1024U - 256U,
+             "Ethernet DMA buffers exceed the 16-KiB MPU region");
+#endif
 
 /* Device constant configuration parameters */
 struct eth_stm32_hal_dev_cfg {
